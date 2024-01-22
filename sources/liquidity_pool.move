@@ -355,7 +355,14 @@ module lp_account::liquidity_pool {
         @param admin - signer representing the admin of this module
     */
     fun init_module(admin: &signer) {
-
+        let signer_cap = get_signer_cap(admin);
+        move_to(admin, State {
+            signer_cap: signer_cap,
+            create_liquidity_pool_events: account::new_event_handle<CreateLiquidityPoolEvent>(admin),
+            supply_liquidity_events: account::new_event_handle<SupplyLiquidityEvent>(admin),
+            remove_liquidity_events: account::new_event_handle<RemoveLiquidityEvent>(admin),
+            swap_events: account::new_event_handle<SwapEvent>(admin)
+        });
     }
     
     /* 
@@ -365,7 +372,12 @@ module lp_account::liquidity_pool {
         @type_param CoinB - the type of the second coin for the liquidity pool
     */  
     public entry fun create_liquidity_pool<CoinA, CoinB>() acquires State {
+        assert_pool_not_exist<CoinA, CoinB>();
+        assert_coin_exist<CoinA>();
+        assert_coin_exist<CoinB>();
+        assert_coin_sorted_and_not_eq<CoinA, CoinB>();
 
+        
     }
 
     /* 
@@ -424,6 +436,21 @@ module lp_account::liquidity_pool {
     //==============================================================================================
     // Helper functions
     //==============================================================================================
+
+    inline fun get_signer_cap(admin: &signer): account::SignerCapability {
+        resource_account::retrieve_resource_account_cap(admin, @overmind)
+    }
+    inline fun assert_pool_not_exist<CoinA, CoinB>() {
+        assert!(exists<LiquidityPool<CoinA, CoinB>>(@lp_account), ECodeForAllErrors);
+    }
+    inline fun assert_coin_exist<CoinX>() {
+        assert!(coin::is_coin_initialized<CoinX>(), ECodeForAllErrors)
+    }
+    inline fun assert_coin_sorted_and_not_eq<CoinA, CoinB>() {
+        let symbol_a = coin::symbol<CoinA>();
+        let symbol_b = coin::symbol<CoinB>();
+        assert!(comparator::is_greater_than(&comparator::compare(&symbol_a, &symbol_b)), ECodeForAllErrors)
+    }
 
     //==============================================================================================
     // Validation functions
